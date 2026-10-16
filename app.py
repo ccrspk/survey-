@@ -20,7 +20,7 @@ with st.sidebar:
     st.header("Settings")
     api_key = st.text_input("Enter Gemini API Key", type="password")
     model_name = st.text_input("Model name", value="gemini-3.8-flash")
-    st.info("Entering your free Gemini API key enables high-accuracy data extraction. If you get a 404 model error, change the model name above.")
+    st.info("Entering your free Gemini API key enables high-accuracy data extraction.")
 
 # Two separate upload sections side-by-side
 col1, col2 = st.columns(2)
@@ -83,57 +83,4 @@ def process_with_gemini(target_text, adjacent_text, key, model):
     - Categorize and list Target Land lots (【当該地】) first, followed by Adjacent Land lots (【隣接地】).
     - In the "備考" column: Place the DATE FIRST followed by the event details (e.g., "平成14年7月18日 国土調査による成果").
     - Multi-line & Symbol Checks: Check the right side of 地積㎡ for indicators like ③, and extract all matching registration change entries below it (e.g., "平成27年4月20日 地目変更登記").
-    - The "抵当権其他の権利関係内容" column MUST remain completely empty (tab delimiter only).
-    - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
-    """
-
-    interaction = client.interactions.create(
-        model=model,
-        input=prompt
-    )
-
-    return interaction.outputs[-1].text
-
-# Process button and extraction logic
-if target_files or adjacent_files:
-    if not api_key:
-        st.warning("⚠️ Please enter your Gemini API Key in the left sidebar.")
-    else:
-        if st.button("🚀 Process Data", type="primary"):
-            with st.spinner("Processing PDF data via Interactions API... Please wait."):
-                try:
-                    target_text = extract_text_from_pdfs(target_files)
-                    adjacent_text = extract_text_from_pdfs(adjacent_files)
-
-                    tsv_result = process_with_gemini(
-                        target_text, adjacent_text, api_key, model_name
-                    )
-
-                    # Clean markdown code blocks from response
-                    cleaned_tsv = re.sub(r'```tsv|```', '', tsv_result).strip()
-
-                    # Parse TSV into pandas DataFrame (keep everything as text)
-                    df = pd.read_csv(
-                        io.StringIO(cleaned_tsv),
-                        sep='\t',
-                        dtype=str,
-                        keep_default_na=False
-                    )
-
-                    st.success("✅ Extraction completed successfully!")
-                    st.subheader("📊 Extracted Data Preview")
-                    st.dataframe(df, use_container_width=True)
-
-                    # Create in-memory Excel file
-                    excel_buffer = io.BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                        df.to_excel(writer, index=False, sheet_name='Land Registry Survey Table')
-
-                    st.download_button(
-                        label="📥 Download Excel File (.xlsx)",
-                        data=excel_buffer.getvalue(),
-                        file_name="land_registry_survey_data.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                except Exception as e:
-                    st.error(f"An error occurred during extraction: {str(e)}")
+    - The "抵当権其他の権利関係内容" column MUST remain completely empty (tab
