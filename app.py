@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
-import google.generativeai as genai
+from google import genai
 import io
 import re
 
@@ -19,7 +19,7 @@ st.markdown("Upload target and adjacent land registry PDF files into their respe
 with st.sidebar:
     st.header("Settings")
     api_key = st.text_input("Enter Gemini API Key", type="password")
-    st.info("Entering your API key enables high-accuracy data extraction via Gemini.")
+    st.info("Entering your free Gemini API key enables high-accuracy data extraction.")
 
 # Two separate upload sections side-by-side
 col1, col2 = st.columns(2)
@@ -53,21 +53,7 @@ def extract_text_from_pdfs(files):
     return text
 
 def process_with_gemini(target_text, adjacent_text, key):
-    genai.configure(api_key=key)
-    
-    # Try preferred models sequentially
-    model_names = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash']
-    model = None
-    
-    for m_name in model_names:
-        try:
-            model = genai.GenerativeModel(m_name)
-            break
-        except Exception:
-            continue
-            
-    if model is None:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+    client = genai.Client(api_key=key)
     
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
@@ -100,7 +86,10 @@ def process_with_gemini(target_text, adjacent_text, key):
     - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt
+    )
     return response.text
 
 # Process button and extraction logic
