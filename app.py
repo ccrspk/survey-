@@ -54,7 +54,8 @@ def extract_text_from_pdfs(files):
 
 def process_with_gemini(target_text, adjacent_text, key):
     genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # Fixed model name to standard gemini-1.5-flash
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
@@ -126,4 +127,3 @@ if target_files or adjacent_files:
                     )
                 except Exception as e:
                     st.error(f"An error occurred during extraction: {str(e)}")
-                    
