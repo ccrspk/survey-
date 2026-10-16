@@ -54,8 +54,12 @@ def extract_text_from_pdfs(files):
 
 def process_with_gemini(target_text, adjacent_text, key):
     genai.configure(api_key=key)
-    # Fixed model name to standard gemini-1.5-flash
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Using explicit models/ prefix required by google-generativeai SDK
+    try:
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
+    except Exception:
+        model = genai.GenerativeModel('models/gemini-2.0-flash')
     
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
@@ -84,7 +88,7 @@ def process_with_gemini(target_text, adjacent_text, key):
     - Categorize and list Target Land lots (【当該地】) first, followed by Adjacent Land lots (【隣接地】).
     - In the "備考" column: Place the DATE FIRST followed by the event details (e.g., "平成14年7月18日 国土調査による成果").
     - Multi-line & Symbol Checks: Check the right side of 地積㎡ for indicators like ③, and extract all matching registration change entries below it (e.g., "平成27年4月20日 地目変更登記").
-    - The "抵当権其他の権利関係内容" column MUST remain completely empty (tab delimiter only).
+    - The "抵当権事情の権利関係内容" column MUST remain completely empty (tab delimiter only).
     - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
     """
     
