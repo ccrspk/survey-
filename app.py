@@ -15,11 +15,12 @@ st.set_page_config(
 st.title("📄 Land Registry Survey Data Extractor")
 st.markdown("Upload target and adjacent land registry PDF files into their respective sections below. The application will extract and structure data into the standard 10-column schema.")
 
-# Sidebar for API Key input
+# Sidebar for API Key and model input
 with st.sidebar:
     st.header("Settings")
     api_key = st.text_input("Enter Gemini API Key", type="password")
-    st.info("Entering your free Gemini API key enables high-accuracy data extraction.")
+    model_name = st.text_input("Model name", value="gemini-3.8-flash")
+    st.info("Entering your free Gemini API key enables high-accuracy data extraction. If you get a 404 model error, change the model name above.")
 
 # Two separate upload sections side-by-side
 col1, col2 = st.columns(2)
@@ -52,9 +53,9 @@ def extract_text_from_pdfs(files):
                 text += f" Page {i+1}:\n" + (page.extract_text() or "")
     return text
 
-def process_with_gemini(target_text, adjacent_text, key):
+def process_with_gemini(target_text, adjacent_text, key, model):
     client = genai.Client(api_key=key)
-    
+
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
     Process the provided text and output raw TSV (Tab-Separated Values).
@@ -85,13 +86,12 @@ def process_with_gemini(target_text, adjacent_text, key):
     - The "抵当権其他の権利関係内容" column MUST remain completely empty (tab delimiter only).
     - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
     """
-    
-    # Using the new Interactions API format
+
     interaction = client.interactions.create(
-        model='gemini-2.5-flash',
+        model=model,
         input=prompt
     )
-    
+
     return interaction.outputs[-1].text
 
 # Process button and extraction logic
@@ -104,24 +104,31 @@ if target_files or adjacent_files:
                 try:
                     target_text = extract_text_from_pdfs(target_files)
                     adjacent_text = extract_text_from_pdfs(adjacent_files)
-                    
-                    tsv_result = process_with_gemini(target_text, adjacent_text, api_key)
-                    
+
+                    tsv_result = process_with_gemini(
+                        target_text, adjacent_text, api_key, model_name
+                    )
+
                     # Clean markdown code blocks from response
                     cleaned_tsv = re.sub(r'```tsv|```', '', tsv_result).strip()
-                    
-                    # Parse TSV into pandas DataFrame
-                    df = pd.read_csv(io.StringIO(cleaned_tsv), sep='\t')
-                    
+
+                    # Parse TSV into pandas DataFrame (keep everything as text)
+                    df = pd.read_csv(
+                        io.StringIO(cleaned_tsv),
+                        sep='\t',
+                        dtype=str,
+                        keep_default_na=False
+                    )
+
                     st.success("✅ Extraction completed successfully!")
                     st.subheader("📊 Extracted Data Preview")
                     st.dataframe(df, use_container_width=True)
-                    
+
                     # Create in-memory Excel file
                     excel_buffer = io.BytesIO()
                     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
                         df.to_excel(writer, index=False, sheet_name='Land Registry Survey Table')
-                    
+
                     st.download_button(
                         label="📥 Download Excel File (.xlsx)",
                         data=excel_buffer.getvalue(),
