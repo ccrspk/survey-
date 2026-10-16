@@ -52,14 +52,29 @@ def extract_text_from_pdfs(files):
                 text += f" Page {i+1}:\n" + (page.extract_text() or "")
     return text
 
+def get_best_model():
+    """Automatically selects an available model with generateContent support."""
+    try:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # Priority order of preferred models
+        for preferred in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']:
+            for name in available_models:
+                if preferred in name:
+                    return genai.GenerativeModel(name)
+        
+        # Fallback to the first supported model found
+        if available_models:
+            return genai.GenerativeModel(available_models[0])
+    except Exception:
+        pass
+    
+    # Default fallback
+    return genai.GenerativeModel('gemini-1.5-flash')
+
 def process_with_gemini(target_text, adjacent_text, key):
     genai.configure(api_key=key)
-    
-    # Using explicit models/ prefix required by google-generativeai SDK
-    try:
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
-    except Exception:
-        model = genai.GenerativeModel('models/gemini-2.0-flash')
+    model = get_best_model()
     
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
@@ -88,7 +103,7 @@ def process_with_gemini(target_text, adjacent_text, key):
     - Categorize and list Target Land lots (【当該地】) first, followed by Adjacent Land lots (【隣接地】).
     - In the "備考" column: Place the DATE FIRST followed by the event details (e.g., "平成14年7月18日 国土調査による成果").
     - Multi-line & Symbol Checks: Check the right side of 地積㎡ for indicators like ③, and extract all matching registration change entries below it (e.g., "平成27年4月20日 地目変更登記").
-    - The "抵当権事情の権利関係内容" column MUST remain completely empty (tab delimiter only).
+    - The "抵当権其他の権利関係内容" column MUST remain completely empty (tab delimiter only).
     - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
     """
     
