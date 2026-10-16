@@ -86,11 +86,13 @@ def process_with_gemini(target_text, adjacent_text, key):
     - Output ONLY the raw TSV data with the header row. Do not include introductory text or explanations.
     """
     
-    response = client.models.generate_content(
+    # Using the new Interactions API format
+    interaction = client.interactions.create(
         model='gemini-2.5-flash',
-        contents=prompt
+        input=prompt
     )
-    return response.text
+    
+    return interaction.outputs[-1].text
 
 # Process button and extraction logic
 if target_files or adjacent_files:
@@ -98,7 +100,7 @@ if target_files or adjacent_files:
         st.warning("⚠️ Please enter your Gemini API Key in the left sidebar.")
     else:
         if st.button("🚀 Process Data", type="primary"):
-            with st.spinner("Processing PDF data... Please wait."):
+            with st.spinner("Processing PDF data via Interactions API... Please wait."):
                 try:
                     target_text = extract_text_from_pdfs(target_files)
                     adjacent_text = extract_text_from_pdfs(adjacent_files)
