@@ -52,29 +52,22 @@ def extract_text_from_pdfs(files):
                 text += f" Page {i+1}:\n" + (page.extract_text() or "")
     return text
 
-def get_best_model():
-    """Automatically selects an available model with generateContent support."""
-    try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # Priority order of preferred models
-        for preferred in ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']:
-            for name in available_models:
-                if preferred in name:
-                    return genai.GenerativeModel(name)
-        
-        # Fallback to the first supported model found
-        if available_models:
-            return genai.GenerativeModel(available_models[0])
-    except Exception:
-        pass
-    
-    # Default fallback
-    return genai.GenerativeModel('gemini-1.5-flash')
-
 def process_with_gemini(target_text, adjacent_text, key):
     genai.configure(api_key=key)
-    model = get_best_model()
+    
+    # Try preferred models sequentially
+    model_names = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash']
+    model = None
+    
+    for m_name in model_names:
+        try:
+            model = genai.GenerativeModel(m_name)
+            break
+        except Exception:
+            continue
+            
+    if model is None:
+        model = genai.GenerativeModel('gemini-2.5-flash')
     
     prompt = f"""
     You are an automated data extraction assistant for Japanese land registry survey tables (土地登記簿等調査表).
